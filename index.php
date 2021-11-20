@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 
+<?php
+try {
+    $dbh = new PDO("mysql:host=localhost;dbname=samgersh", "root", "7y_6V*87$#");
+} catch (Exception $e) {
+    die("ERROR. Couldn't get DB Connection. " . $e->getMessage());
+}
+?>
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -9,31 +17,30 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <!-- <script src="main.js"></script> -->
     <style>
-        * {
-            /* border: 1px solid gainsboro; */
-        }
-
         #player-select {
             padding: 20px;
             display: block;
             margin: auto;
-            margin-top: 50px;
-            width: 500px;
+            margin-top: 20px;
+            width: 75%;
         }
 
-        .player-container {
+        .player-container,
+        .gun-container {
             padding: 10px;
-            width: 100px;
+            width: fit-content;
             font-size: 18px;
             font-weight: 600;
             text-transform: uppercase;
             text-align: center;
             border: 1px solid gainsboro;
             transition: all 0.2s;
-
+            display: inline-block;
+            margin: 10px;
         }
 
-        .player-container:hover {
+        .player-container:hover,
+        .gun-container:hover {
             background: #c1ffd7;
             color: black;
             transform: scaleX(1.05) scaleY(1.05);
@@ -48,7 +55,14 @@
         #stats-grid {
             display: grid;
             grid-auto-flow: column;
-            width: 500px;
+            width: 75%;
+            margin: auto;
+            text-transform: capitalize;
+        }
+
+        #gun-grid {
+            display: grid;
+            width: 75%;
             margin: auto;
             text-transform: capitalize;
         }
@@ -68,6 +82,11 @@
         .tie {
             color: gray;
         }
+
+        .selected,
+        .selected-gun {
+            background: #c1ffd7;
+        }
     </style>
 </head>
 
@@ -83,11 +102,6 @@
             <h2>Players</h2>
 
             <?php
-            try {
-                $dbh = new PDO("mysql:host=localhost;dbname=samgersh", "root", "7y_6V*87$#");
-            } catch (Exception $e) {
-                die("ERROR. Couldn't get DB Connection. " . $e->getMessage());
-            }
             $cmd = "select player_name from sauer_matches group by player_name";
             $stmt = $dbh->prepare($cmd);
             $success = $stmt->execute([]);
@@ -113,6 +127,32 @@
                 </div>
             </div>
         </div>
+
+        <div id='gun-grid'>
+            <div id='gun-select'>
+                <h2>Gun Select</h2>
+                <div id='gun-select-grid'>
+                    <?php
+                    $cmd = "select * from sauer_matches LIMIT 1";
+                    $stmt = $dbh->prepare($cmd);
+                    $success = $stmt->execute([]);
+
+                    $row = $stmt->fetch();
+                    $guns = json_decode($row['gun_hits']);
+
+                    foreach ($guns as $gun => $val) {
+                        echo '<div class="gun-container">' . $gun . '</div>';
+                    }
+                    ?>
+                </div>
+            </div>
+            <div id='gun-stats'>
+                <h2>Gun Stats</h2>
+                <div id='gun-stats-grid'>
+
+                </div>
+            </div>
+        </div>
     </div>
     <script>
         window.addEventListener("load", function() {
@@ -120,6 +160,8 @@
             let date;
             let gunShots;
             let gunHits;
+            let selectedPlayer = "";
+            let playerMatches = null;
 
             document.getElementById('inputfile').addEventListener('change', function() {
                 var fr = new FileReader();
@@ -184,7 +226,14 @@
 
             document.querySelectorAll(".player-container").forEach(function(el) {
                 el.addEventListener("click", function() {
+
+                    try {
+                        document.querySelector(".selected").classList.remove("selected");
+                    } catch {}
+                    el.classList.add("selected");
+
                     let name = el.innerHTML.trim();
+                    selectedPlayer = name;
                     $.post({
                         type: "POST",
                         url: 'get_player_info.php',
@@ -193,7 +242,8 @@
                         },
                         success: function(response) {
 
-                            let playerMatches = JSON.parse(response);
+                            playerMatches = JSON.parse(response);
+
                             //console.log(playerMatches);
                             let info = {
                                 "Total Games": 0,
@@ -248,11 +298,10 @@
                             document.querySelector("#player-info-grid").innerHTML = output;
 
                             output = "";
-                            playerMatches.map(match => output += "<div class='" + match['win_state'] + "'>Match ID: " + match['id'] + " - " + match['win_state'] + "</div><br>");
+                            playerMatches.map(match => output += "<a href='/sauer/match.php?id=" + match['id'] + "' class='" + match['win_state'] + "'>Match ID: " + match['id'] + " - " + match['win_state'] + "</a><br>");
                             document.querySelector("#player-match-grid").innerHTML = output;
 
                             //TODO: Make match view - player matches will be clickable
-                            //TODO: Add individual gun stats
                             //TODO: Add images for maps and guns
                             //TODO: Add cool graphs :)
                             //TODO: sexify
@@ -262,6 +311,56 @@
                     });
                 })
             })
+
+            document.querySelectorAll(".gun-container").forEach(function(el) {
+                el.addEventListener("click", function() {
+
+                    try {
+                        document.querySelector(".selected-gun").classList.remove("selected-gun");
+                    } catch {}
+                    el.classList.add("selected-gun");
+
+                    let gun = el.innerHTML;
+
+                    let info = {
+                        "Total Shots": 0,
+                        "Total Hits": 0,
+                        "Accuracy": 0,
+                        "Average Shots": 0,
+                        "Average Hits": 0,
+                        "Average Accuracy": 0,
+                    }
+
+
+                    playerMatches.map(match => info["Total Shots"] += getShots(match, gun));
+                    playerMatches.map(match => info["Total Hits"] += getHits(match, gun));
+
+                    info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
+                    info["Average Shots"] = parseFloat((info["Total Shots"] / playerMatches.length).toFixed(2));
+                    info["Average Hits"] = parseFloat((info["Total Hits"] / playerMatches.length).toFixed(2));
+
+                    playerMatches.map(match => info["Average Accuracy"] += parseInt((getHits(match, gun) * 100) / Math.max(getShots(match, gun), 1)));
+                    info["Average Accuracy"] = parseFloat((info["Average Accuracy"] / playerMatches.length).toFixed(2));
+
+                    let output = "";
+                    Object.keys(info).map(function(key, index) {
+                        output += "<div>" + key + ": " + info[key] + "</div>"
+                    });
+                    document.querySelector("#gun-stats-grid").innerHTML = output;
+                })
+            })
+
+            function getHits(match, gun) {
+                gun = gun.toLowerCase()
+                let hits = JSON.parse(match['gun_hits']);
+                return parseInt(hits[gun]);
+            }
+
+            function getShots(match, gun) {
+                gun = gun.toLowerCase()
+                let shots = JSON.parse(match['gun_shots']);
+                return parseInt(shots[gun]);
+            }
 
 
         })
