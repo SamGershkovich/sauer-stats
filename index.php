@@ -278,9 +278,9 @@ try {
                             playerMatches.map(match => info["Total Hits"] += parseInt(match['total_hits']));
                             playerMatches.map(match => info["Total Damage"] += parseInt(match['total_damage']));
 
-                            info["Accuracy"] = parseFloat((info["Total Hits"] / info["Total Shots"] * 100).toFixed(2));
+                            info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
 
-                            info["K/D"] = parseFloat((info["Total Kills"] / info["Total Deaths"]).toFixed(2));
+                            info["K/D"] = parseFloat((info["Total Kills"] / Math.max(info["Total Deaths"], 1)).toFixed(2));
 
                             playerMatches.map(match => info["Average K/D"] += (parseFloat((parseInt(match['kills']) / Math.max(parseInt(match['deaths']), 1)).toFixed(2))));
                             info["Average K/D"] = parseFloat((info["Average K/D"] / playerMatches.length).toFixed(2));

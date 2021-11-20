@@ -126,159 +126,163 @@ if (isset($_REQUEST['id'])) {
 </head>
 
 <body>
-    <div id="main">
-        <h1>Cube 2: Sauerbraten - Match <?php echo $id; ?> Stats</h1>
+    <?php if ($data != null) { ?>
+        <div id="main">
+            <h1>Cube 2: Sauerbraten - Match <?php echo $id; ?> Stats</h1>
 
-        <div id='game-info-grid' class='grid-container'>
-            <div id='map-image'></div>
-            <div id='game-info'></div>
-        </div>
-
-        <div id='stats-grid' class='grid-container'>
-            <div id='player-info'>
-                <h2>Player Info - <?php echo $data['player_name']; ?></h2>
-                <div id='player-info-grid'>
-
-                </div>
+            <div id='game-info-grid' class='grid-container'>
+                <div id='map-image'></div>
+                <div id='game-info'></div>
             </div>
 
-        </div>
+            <div id='stats-grid' class='grid-container'>
+                <div id='player-info'>
+                    <h2>Player Info - <?php echo $data['player_name']; ?></h2>
+                    <div id='player-info-grid'>
 
-        <div id='gun-grid' class='grid-container'>
-            <div id='gun-select'>
-                <h2>Gun Select</h2>
-                <div id='gun-select-grid'>
-                    <?php
-                    $cmd = "select * from sauer_matches LIMIT 1";
-                    $stmt = $dbh->prepare($cmd);
-                    $success = $stmt->execute([]);
+                    </div>
+                </div>
 
-                    $row = $stmt->fetch();
-                    $guns = json_decode($row['gun_hits']);
+            </div>
 
-                    foreach ($guns as $gun => $val) {
-                        echo '<div class="gun-container">' . $gun . '</div>';
-                    }
-                    ?>
+            <div id='gun-grid' class='grid-container'>
+                <div id='gun-select'>
+                    <h2>Gun Select</h2>
+                    <div id='gun-select-grid'>
+                        <?php
+                        $cmd = "select * from sauer_matches LIMIT 1";
+                        $stmt = $dbh->prepare($cmd);
+                        $success = $stmt->execute([]);
+
+                        $row = $stmt->fetch();
+                        $guns = json_decode($row['gun_hits']);
+
+                        foreach ($guns as $gun => $val) {
+                            echo '<div class="gun-container">' . $gun . '</div>';
+                        }
+                        ?>
+                    </div>
+                </div>
+                <div id='gun-stats'>
+                    <h2>Gun Stats</h2>
+                    <div id='gun-stats-grid'>
+
+                    </div>
                 </div>
             </div>
-            <div id='gun-stats'>
-                <h2>Gun Stats</h2>
-                <div id='gun-stats-grid'>
-
-                </div>
-            </div>
         </div>
-    </div>
+    <?php } ?>
     <script>
         window.addEventListener("load", function() {
             let matchDate = <?php
-                            if ($row == null) {
+                            if ($data == null) {
                                 echo 'undefined';
                             } else {
                                 echo '"' . date('M d, Y - g:i:s A', strtotime($data['date'])) . '"';
                             }
                             ?>;
             let matchData = <?php
-                            if ($row == null) {
-                                echo '"error"';
+                            if ($data == null) {
+                                echo 'undefined';
                             } else {
                                 echo json_encode($data);
                             }
                             ?>;
 
-            console.log(matchDate);
+            //console.log(matchDate);
 
-            selectedPlayer = matchData['player_name'];
+            if (matchData !== undefined) {
 
-            document.querySelector("#game-info").innerHTML = "<div>" +
-                matchDate + "</div> <div>" +
-                matchData['map'].split('_').join(' ') + "</div> <div>" +
-                matchData['gamemode'] + "</div><div>" +
-                matchData['win_state'] + "</div>"
+                selectedPlayer = matchData['player_name'];
 
-            $.post({
-                type: "POST",
-                url: 'get_player_info.php',
-                data: {
-                    "player": name,
-                },
-                success: function(response) {
+                document.querySelector("#game-info").innerHTML = "<div>" +
+                    matchDate + "</div> <div>" +
+                    matchData['map'].split('_').join(' ') + "</div> <div>" +
+                    matchData['gamemode'] + "</div><div>" +
+                    matchData['win_state'] + "</div>"
 
-                    playerMatches = JSON.parse(response);
+                $.post({
+                    type: "POST",
+                    url: 'get_player_info.php',
+                    data: {
+                        "player": name,
+                    },
+                    success: function(response) {
 
-                    //console.log(playerMatches);
-                    let info = {
-                        "Kills": 0,
-                        "Deaths": 0,
-                        "Suicides": 0,
-                        "Total Damage": 0,
-                        "Total Shots": 0,
-                        "Total Hits": 0,
-                        "Accuracy": 0,
-                        "K/D": 0,
+                        playerMatches = JSON.parse(response);
+
+                        //console.log(playerMatches);
+                        let info = {
+                            "Kills": 0,
+                            "Deaths": 0,
+                            "Suicides": 0,
+                            "Total Damage": 0,
+                            "Total Shots": 0,
+                            "Total Hits": 0,
+                            "Accuracy": 0,
+                            "K/D": 0,
+                        }
+
+                        info["Kills"] += parseInt(matchData['kills']);
+                        info["Deaths"] += parseInt(matchData['deaths']);
+                        info["Suicides"] += parseInt(matchData['suicides']);
+                        info["Total Shots"] += parseInt(matchData['total_shots']);
+                        info["Total Hits"] += parseInt(matchData['total_hits']);
+                        info["Total Damage"] += parseInt(matchData['total_damage']);
+                        info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
+                        info["K/D"] = parseFloat((info["Kills"] / Math.max(info["Deaths"], 1)).toFixed(2));
+
+                        let output = "";
+                        Object.keys(info).map(function(key, index) {
+                            output += "<div>" + key + ": " + info[key] + "</div>"
+                        });
+                        document.querySelector("#player-info-grid").innerHTML = output;
+
                     }
-
-                    info["Kills"] += parseInt(matchData['kills']);
-                    info["Deaths"] += parseInt(matchData['deaths']);
-                    info["Suicides"] += parseInt(matchData['suicides']);
-                    info["Total Shots"] += parseInt(matchData['total_shots']);
-                    info["Total Hits"] += parseInt(matchData['total_hits']);
-                    info["Total Damage"] += parseInt(matchData['total_damage']);
-                    info["Accuracy"] = parseFloat((info["Total Hits"] / info["Total Shots"] * 100).toFixed(2));
-                    info["K/D"] = parseFloat((info["Kills"] / info["Deaths"]).toFixed(2));
-
-                    let output = "";
-                    Object.keys(info).map(function(key, index) {
-                        output += "<div>" + key + ": " + info[key] + "</div>"
-                    });
-                    document.querySelector("#player-info-grid").innerHTML = output;
-
-                }
-            });
+                });
 
 
-            document.querySelectorAll(".gun-container").forEach(function(el) {
-                el.addEventListener("click", function() {
+                document.querySelectorAll(".gun-container").forEach(function(el) {
+                    el.addEventListener("click", function() {
 
-                    try {
-                        document.querySelector(".selected-gun").classList.remove("selected-gun");
-                    } catch {}
-                    el.classList.add("selected-gun");
+                        try {
+                            document.querySelector(".selected-gun").classList.remove("selected-gun");
+                        } catch {}
+                        el.classList.add("selected-gun");
 
-                    let gun = el.innerHTML;
+                        let gun = el.innerHTML;
 
-                    let info = {
-                        "Shots": 0,
-                        "Hits": 0,
-                        "Accuracy": 0,
-                    };
+                        let info = {
+                            "Shots": 0,
+                            "Hits": 0,
+                            "Accuracy": 0,
+                        };
 
-                    info["Shots"] += getShots(matchData, gun);
-                    info["Hits"] += getHits(matchData, gun);
-                    info["Accuracy"] = parseFloat((info["Hits"] / Math.max(info["Shots"], 1) * 100).toFixed(2));
+                        info["Shots"] += getShots(matchData, gun);
+                        info["Hits"] += getHits(matchData, gun);
+                        info["Accuracy"] = parseFloat((info["Hits"] / Math.max(info["Shots"], 1) * 100).toFixed(2));
 
-                    let output = "";
-                    Object.keys(info).map(function(key, index) {
-                        output += "<div>" + key + ": " + info[key] + "</div>"
-                    });
-                    document.querySelector("#gun-stats-grid").innerHTML = output;
+                        let output = "";
+                        Object.keys(info).map(function(key, index) {
+                            output += "<div>" + key + ": " + info[key] + "</div>"
+                        });
+                        document.querySelector("#gun-stats-grid").innerHTML = output;
+                    })
                 })
-            })
 
-            function getHits(match, gun) {
-                gun = gun.toLowerCase()
-                let hits = JSON.parse(match['gun_hits']);
-                return parseInt(hits[gun]);
+                function getHits(match, gun) {
+                    gun = gun.toLowerCase()
+                    let hits = JSON.parse(match['gun_hits']);
+                    return parseInt(hits[gun]);
+                }
+
+                function getShots(match, gun) {
+                    gun = gun.toLowerCase()
+                    let shots = JSON.parse(match['gun_shots']);
+                    return parseInt(shots[gun]);
+                }
+
             }
-
-            function getShots(match, gun) {
-                gun = gun.toLowerCase()
-                let shots = JSON.parse(match['gun_shots']);
-                return parseInt(shots[gun]);
-            }
-
-
         })
     </script>
 </body>
