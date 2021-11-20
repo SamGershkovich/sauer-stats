@@ -83,7 +83,7 @@ if (isset($_REQUEST['id'])) {
         }
 
         #game-info-grid {
-            grid-auto-columns: 1fr 1fr 1fr;
+            grid-auto-columns: 1fr 6fr;
             font-size: 20px;
         }
 
@@ -132,7 +132,6 @@ if (isset($_REQUEST['id'])) {
         <div id='game-info-grid' class='grid-container'>
             <div id='map-image'></div>
             <div id='game-info'></div>
-            <div></div>
         </div>
 
         <div id='stats-grid' class='grid-container'>
