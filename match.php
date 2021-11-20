@@ -74,7 +74,7 @@ if (isset($_REQUEST['id'])) {
             color: red;
         }
 
-        #stats-grid {
+        .grid-container {
             display: grid;
             grid-auto-flow: column;
             width: 75%;
@@ -82,11 +82,18 @@ if (isset($_REQUEST['id'])) {
             text-transform: capitalize;
         }
 
+        #game-info-grid {
+            grid-auto-columns: 1fr 1fr 1fr;
+            font-size: 20px;
+        }
+
         #gun-grid {
-            display: grid;
-            width: 75%;
-            margin: auto;
-            text-transform: capitalize;
+            grid-auto-flow: row;
+
+        }
+
+        #stats-grid {
+            grid-auto-flow: column;
         }
 
         #main {
@@ -109,15 +116,28 @@ if (isset($_REQUEST['id'])) {
         .selected-gun {
             background: #c1ffd7;
         }
+
+        #map-image {
+            width: 300px;
+            height: 300px;
+            border: 1px solid gainsboro;
+        }
     </style>
 </head>
 
 <body>
     <div id="main">
         <h1>Cube 2: Sauerbraten - Match <?php echo $id; ?> Stats</h1>
-        <div id='stats-grid'>
+
+        <div id='game-info-grid' class='grid-container'>
+            <div id='map-image'></div>
+            <div id='game-info'></div>
+            <div></div>
+        </div>
+
+        <div id='stats-grid' class='grid-container'>
             <div id='player-info'>
-                <h2>Player Info</h2>
+                <h2>Player Info - <?php echo $data['player_name']; ?></h2>
                 <div id='player-info-grid'>
 
                 </div>
@@ -125,7 +145,7 @@ if (isset($_REQUEST['id'])) {
 
         </div>
 
-        <div id='gun-grid'>
+        <div id='gun-grid' class='grid-container'>
             <div id='gun-select'>
                 <h2>Gun Select</h2>
                 <div id='gun-select-grid'>
@@ -153,6 +173,13 @@ if (isset($_REQUEST['id'])) {
     </div>
     <script>
         window.addEventListener("load", function() {
+            let matchDate = <?php
+                            if ($row == null) {
+                                echo 'undefined';
+                            } else {
+                                echo '"' . date('M d, Y - g:i:s A', strtotime($data['date'])) . '"';
+                            }
+                            ?>;
             let matchData = <?php
                             if ($row == null) {
                                 echo '"error"';
@@ -161,7 +188,16 @@ if (isset($_REQUEST['id'])) {
                             }
                             ?>;
 
+            console.log(matchDate);
+
             selectedPlayer = matchData['player_name'];
+
+            document.querySelector("#game-info").innerHTML = "<div>" +
+                matchDate + "</div> <div>" +
+                matchData['map'].split('_').join(' ') + "</div> <div>" +
+                matchData['gamemode'] + "</div><div>" +
+                matchData['win_state'] + "</div>"
+
             $.post({
                 type: "POST",
                 url: 'get_player_info.php',
