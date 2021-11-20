@@ -9,7 +9,6 @@ try {
 }
 if (isset($_REQUEST['id'])) {
     $id = $_REQUEST['id'];
-
     try {
         $dbh = new PDO("mysql:host=localhost;dbname=samgersh", "root", "7y_6V*87$#");
     } catch (Exception $e) {
@@ -20,12 +19,12 @@ if (isset($_REQUEST['id'])) {
     $stmt = $dbh->prepare($cmd);
     $success = $stmt->execute([$id]);
 
-    $row = null;
+    $data = null;
 
     if ($stmt->rowCount() <= 0) {
         echo 'Couldn\'t find match.';
     } else {
-        $row = $stmt->fetch();
+        $data = $stmt->fetch();
     }
 } else {
     echo 'Couldn\'t find match.';
@@ -115,7 +114,7 @@ if (isset($_REQUEST['id'])) {
 
 <body>
     <div id="main">
-        <h1>Cube 2: Sauerbraten - Match Stats</h1>
+        <h1>Cube 2: Sauerbraten - Match <?php echo $id; ?> Stats</h1>
         <div id='stats-grid'>
             <div id='player-info'>
                 <h2>Player Info</h2>
@@ -158,7 +157,7 @@ if (isset($_REQUEST['id'])) {
                             if ($row == null) {
                                 echo '"error"';
                             } else {
-                                echo json_encode($row);
+                                echo json_encode($data);
                             }
                             ?>;
 
@@ -199,7 +198,7 @@ if (isset($_REQUEST['id'])) {
                         output += "<div>" + key + ": " + info[key] + "</div>"
                     });
                     document.querySelector("#player-info-grid").innerHTML = output;
-                   
+
                 }
             });
 

@@ -161,6 +161,7 @@ try {
             let gunShots;
             let gunHits;
             let selectedPlayer = "";
+            let selectedGun = undefined;
             let playerMatches = null;
 
             document.getElementById('inputfile').addEventListener('change', function() {
@@ -301,6 +302,8 @@ try {
                             playerMatches.map(match => output += "<a href='/sauer/match.php?id=" + match['id'] + "' class='" + match['win_state'] + "'>Match ID: " + match['id'] + " - " + match['win_state'] + "</a><br>");
                             document.querySelector("#player-match-grid").innerHTML = output;
 
+                            if (selectedGun !== undefined)
+                                getGunStats(selectedGun);
                             //TODO: Make match view - player matches will be clickable
                             //TODO: Add images for maps and guns
                             //TODO: Add cool graphs :)
@@ -321,45 +324,50 @@ try {
                     el.classList.add("selected-gun");
 
                     let gun = el.innerHTML;
+                    selectedGun = gun;
 
-                    let info = {
-                        "Total Shots": 0,
-                        "Total Hits": 0,
-                        "Accuracy": 0,
-                        "Average Shots": 0,
-                        "Average Hits": 0,
-                        "Average Accuracy": 0,
-                    }
-
-
-                    playerMatches.map(match => info["Total Shots"] += getShots(match, gun));
-                    playerMatches.map(match => info["Total Hits"] += getHits(match, gun));
-
-                    info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
-                    info["Average Shots"] = parseFloat((info["Total Shots"] / playerMatches.length).toFixed(2));
-                    info["Average Hits"] = parseFloat((info["Total Hits"] / playerMatches.length).toFixed(2));
-
-                    playerMatches.map(match => info["Average Accuracy"] += parseInt((getHits(match, gun) * 100) / Math.max(getShots(match, gun), 1)));
-                    info["Average Accuracy"] = parseFloat((info["Average Accuracy"] / playerMatches.length).toFixed(2));
-
-                    let output = "";
-                    Object.keys(info).map(function(key, index) {
-                        output += "<div>" + key + ": " + info[key] + "</div>"
-                    });
-                    document.querySelector("#gun-stats-grid").innerHTML = output;
+                    getGunStats();
                 })
             })
 
-            function getHits(match, gun) {
-                gun = gun.toLowerCase()
-                let hits = JSON.parse(match['gun_hits']);
-                return parseInt(hits[gun]);
+            function getGunStats() {
+                let info = {
+                    "Total Shots": 0,
+                    "Total Hits": 0,
+                    "Accuracy": 0,
+                    "Average Shots": 0,
+                    "Average Hits": 0,
+                    "Average Accuracy": 0,
+                }
+
+
+                playerMatches.map(match => info["Total Shots"] += getShots(match));
+                playerMatches.map(match => info["Total Hits"] += getHits(match));
+
+                info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
+                info["Average Shots"] = parseFloat((info["Total Shots"] / playerMatches.length).toFixed(2));
+                info["Average Hits"] = parseFloat((info["Total Hits"] / playerMatches.length).toFixed(2));
+
+                playerMatches.map(match => info["Average Accuracy"] += parseInt((getHits(match) * 100) / Math.max(getShots(match), 1)));
+                info["Average Accuracy"] = parseFloat((info["Average Accuracy"] / playerMatches.length).toFixed(2));
+
+                let output = "";
+                Object.keys(info).map(function(key, index) {
+                    output += "<div>" + key + ": " + info[key] + "</div>"
+                });
+                document.querySelector("#gun-stats-grid").innerHTML = output;
             }
 
-            function getShots(match, gun) {
-                gun = gun.toLowerCase()
+            function getHits(match) {
+                selectedGun = selectedGun.toLowerCase()
+                let hits = JSON.parse(match['gun_hits']);
+                return parseInt(hits[selectedGun]);
+            }
+
+            function getShots(match) {
+                selectedGun = selectedGun.toLowerCase()
                 let shots = JSON.parse(match['gun_shots']);
-                return parseInt(shots[gun]);
+                return parseInt(shots[selectedGun]);
             }
 
 
