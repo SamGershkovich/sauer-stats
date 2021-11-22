@@ -6,13 +6,80 @@ include "secrets.php"
 <!DOCTYPE html>
 <html lang="en">
 
+<?php
+try {
+    $dbh = new PDO("mysql:host=localhost;dbname=".$dbname, $username, $password);
+} catch (Exception $e) {
+    die("ERROR. Couldn't get DB Connection. " . $e->getMessage());
+}
+?>
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sauer Stats</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <!-- <script src="main.js"></script> -->
+    <style>
+        #player-select {
+            padding: 20px;
+            display: block;
+            margin: auto;
+            margin-top: 20px;
+            width: 75%;
+        }
 
+        .player-container,
+        .gun-container {
+            padding: 10px;
+            width: fit-content;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            text-align: center;
+            border: 1px solid gainsboro;
+            transition: all 0.2s;
+            display: inline-block;
+            margin: 10px;
+        }
+
+        .player-container:hover,
+        .gun-container:hover {
+            background: #c1ffd7;
+            color: black;
+            transform: scaleX(1.05) scaleY(1.05);
+            box-shadow: 0px 8px 25px -1px #00000040;
+            cursor: pointer;
+        }
+
+        #submit-message {
+            color: red;
+        }
+
+        #stats-grid {
+            display: grid;
+            grid-auto-flow: column;
+            width: 75%;
+            margin: auto;
+            text-transform: capitalize;
+        }
+
+        #gun-grid {
+            display: grid;
+            width: 75%;
+            margin: auto;
+            text-transform: capitalize;
+        }
+        .tie {
+            color: gray;
+        }
+
+        .selected,
+        .selected-gun {
+            background: #c1ffd7;
+        }
+    </style>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +88,7 @@ include "secrets.php"
     <!-- <script src="main.js"></script> -->
     <link rel="stylesheet" href="assets/style.css">
     <link rel="stylesheet" href="assets/utilities.css">
+    
 </head>
 
 <body>
@@ -42,11 +110,6 @@ include "secrets.php"
             <h3>Players</h3>
             <div class="flex">
                 <?php
-                try {
-                    $dbh = new PDO("mysql:host=localhost;dbname=".$dbname, $username, $password);
-                } catch (Exception $e) {
-                    die("ERROR. Couldn't get DB Connection. " . $e->getMessage());
-                }
                 $cmd = "select player_name from sauer_matches group by player_name";
                 $stmt = $dbh->prepare($cmd);
                 $success = $stmt->execute([]);
@@ -82,6 +145,31 @@ include "secrets.php"
             </div> 
         </div>
 
+        <div id='gun-grid'>
+            <div id='gun-select'>
+                <h2>Gun Select</h2>
+                <div id='gun-select-grid'>
+                    <?php
+                    $cmd = "select * from sauer_matches LIMIT 1";
+                    $stmt = $dbh->prepare($cmd);
+                    $success = $stmt->execute([]);
+
+                    $row = $stmt->fetch();
+                    $guns = json_decode($row['gun_hits']);
+
+                    foreach ($guns as $gun => $val) {
+                        echo '<div class="gun-container">' . $gun . '</div>';
+                    }
+                    ?>
+                </div>
+            </div>
+            <div id='gun-stats'>
+                <h2>Gun Stats</h2>
+                <div id='gun-stats-grid'>
+
+                </div>
+            </div>
+        </div>
     </div>
     <script>
 
@@ -94,6 +182,9 @@ include "secrets.php"
             let date;
             let gunShots;
             let gunHits;
+            let selectedPlayer = "";
+            let selectedGun = undefined;
+            let playerMatches = null;
 
             document.getElementById('inputfile').addEventListener('change', function() {
                 var fr = new FileReader();
@@ -251,6 +342,63 @@ include "secrets.php"
                 }
             })
         }
+
+            document.querySelectorAll(".gun-container").forEach(function(el) {
+                el.addEventListener("click", function() {
+
+                    try {
+                        document.querySelector(".selected-gun").classList.remove("selected-gun");
+                    } catch {}
+                    el.classList.add("selected-gun");
+
+                    let gun = el.innerHTML;
+                    selectedGun = gun;
+
+                    getGunStats();
+                })
+            })
+
+            function getGunStats() {
+                let info = {
+                    "Total Shots": 0,
+                    "Total Hits": 0,
+                    "Accuracy": 0,
+                    "Average Shots": 0,
+                    "Average Hits": 0,
+                    "Average Accuracy": 0,
+                }
+
+
+                playerMatches.map(match => info["Total Shots"] += getShots(match));
+                playerMatches.map(match => info["Total Hits"] += getHits(match));
+
+                info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
+                info["Average Shots"] = parseFloat((info["Total Shots"] / playerMatches.length).toFixed(2));
+                info["Average Hits"] = parseFloat((info["Total Hits"] / playerMatches.length).toFixed(2));
+
+                playerMatches.map(match => info["Average Accuracy"] += parseInt((getHits(match) * 100) / Math.max(getShots(match), 1)));
+                info["Average Accuracy"] = parseFloat((info["Average Accuracy"] / playerMatches.length).toFixed(2));
+
+                let output = "";
+                Object.keys(info).map(function(key, index) {
+                    output += "<div>" + key + ": " + info[key] + "</div>"
+                });
+                document.querySelector("#gun-stats-grid").innerHTML = output;
+            }
+
+            function getHits(match) {
+                selectedGun = selectedGun.toLowerCase()
+                let hits = JSON.parse(match['gun_hits']);
+                return parseInt(hits[selectedGun]);
+            }
+
+            function getShots(match) {
+                selectedGun = selectedGun.toLowerCase()
+                let shots = JSON.parse(match['gun_shots']);
+                return parseInt(shots[selectedGun]);
+            }
+
+
 
         function dragging_player(event) {
             state.player_dragged = event.originalTarget.innerHTML.trim();

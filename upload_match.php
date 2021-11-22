@@ -6,6 +6,7 @@ try {
 } catch (Exception $e) {
     die("ERROR. Couldn't get DB Connection. " . $e->getMessage());
 }
+date_default_timezone_set('America/Toronto');
 
 $date = date('Y-m-d H:i:s', strtotime($_POST['date']));
 $player = $_POST['player'];
@@ -27,19 +28,16 @@ $cmd = "select * from sauer_matches where date = ? and player_name = ?";
 $stmt = $dbh->prepare($cmd);
 $success = $stmt->execute([$date, $player]);
 
-if($stmt->rowCount() > 0){
+if ($stmt->rowCount() > 0) {
     echo 'failed: match already exists';
-}else{
+} else {
     $cmd = "INSERT INTO `sauer_matches`(`date`, `player_name`, `map`, `gamemode`, `win_state`, `kills`, `deaths`, `suicides`, `max_damage`, `total_damage`, `total_shots`, `total_hits`, `accuracy`, `gun_shots`, `gun_hits`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
     $stmt = $dbh->prepare($cmd);
     $success = $stmt->execute([$date, $player, $map, $gamemode, $win_state, $kills, $deaths, $suicides, $max_damage, $total_damage, $total_shots, $total_hits, $accuracy, json_encode($gun_shots), json_encode($gun_hits)]);
 
     if ($success === false) {
         echo "failed";
-    } else {        
+    } else {
         echo "success";
     }
 }
-
-
-
