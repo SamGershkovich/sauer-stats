@@ -1,0 +1,36 @@
+.flex {
+    display: flex;
+}
+
+.justify-between{
+    justify-content: space-between;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.flex-wrap {
+    flex-wrap: wrap;
+}
+
+.text-primary {
+    color: var( --primary-color );
+}
+.text-secondary {
+    color: var( --primary-secondary);
+}
+.text-tertiary{
+    color: var( --primary-tertiary );
+}
+
+.bg-primary {
+    background-color: var( --primary-color );
+}
+.bg-secondary {
+    background-color: var( --primary-secondary);
+}
+.bg-tertiary{
+    background-color: var( --primary-tertiary );
+}
+

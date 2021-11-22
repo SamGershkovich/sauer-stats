@@ -1,7 +1,8 @@
 <?php
+include "secrets.php";
 
 try {
-    $dbh = new PDO("mysql:host=localhost;dbname=samgersh", "root", "7y_6V*87$#");
+    $dbh = new PDO("mysql:host=localhost;dbname=".$dbname, $username, $password);
 } catch (Exception $e) {
     die("ERROR. Couldn't get DB Connection. " . $e->getMessage());
 }
