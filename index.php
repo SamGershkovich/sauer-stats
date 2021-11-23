@@ -8,9 +8,21 @@ include "secrets.php"
 
 <?php
 try {
-    $dbh = new PDO("mysql:host=localhost;dbname=".$dbname, $username, $password);
+    $dbh = new PDO("mysql:host=localhost;dbname=" . $dbname, $username, $password);
 } catch (Exception $e) {
     die("ERROR. Couldn't get DB Connection. " . $e->getMessage());
+}
+
+$cmd = "select * from sauer_matches LIMIT 1";
+$stmt = $dbh->prepare($cmd);
+$success = $stmt->execute([]);
+
+$row = $stmt->fetch();
+$guns = json_decode($row['gun_hits']);
+$gunList = [];
+foreach ($guns as $gun => $val) {
+    //echo '<div class="gun-slide" id="'.$gun.'-view"></div>';
+    $gunList[] = $gun;
 }
 ?>
 
@@ -20,7 +32,6 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sauer Stats</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-    <!-- <script src="main.js"></script> -->
     <style>
         #player-select {
             padding: 20px;
@@ -71,6 +82,7 @@ try {
             margin: auto;
             text-transform: capitalize;
         }
+
         .tie {
             color: gray;
         }
@@ -79,26 +91,34 @@ try {
         .selected-gun {
             background: #c1ffd7;
         }
+
+        .hidden {
+            display: none !important;
+        }
     </style>
+
+    <!-- THREE.js -->
+    <script src="assets/three.min.js"></script>
+    <script src="assets/GLTFLoader.js"></script>
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500;1,600&family=Press+Start+2P&display=swap" rel="stylesheet"> 
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500;1,600&family=Press+Start+2P&display=swap" rel="stylesheet">
 
-    <!-- <script src="main.js"></script> -->
     <link rel="stylesheet" href="assets/style.css">
     <link rel="stylesheet" href="assets/utilities.css">
-    
+
 </head>
 
 <body>
 
     <header class="flex align-center">
         <div>
-        <img src="assets/cube2logo.png" style="width: 280px; margin-right: 2rem"/> 
+            <img src="assets/cube2logo.png" style="width: 280px; margin-right: 2rem" />
         </div>
         <div>
-            <br/>
+            <br />
             <input type="file" name="inputfile" id="inputfile">
             <input type="button" id="submitMatch" value="Submit Match">
             <p id='submit-message'></p>
@@ -122,70 +142,148 @@ try {
         </div>
 
         <div style="display: flex;">
-           <div style=" height: calc(100vh - 220px); overflow: auto; width: 20%; padding: 1rem;"> 
+            <div style=" height: calc(100vh - 220px); overflow: auto; width: 20%; padding: 1rem;">
                 <h4>Maps</h4>
-                <img src="assets/imgs/curvy_castle.png" style="width: 100%; border-radius: 6px; margin-bottom: 1rem;"/>
-                <img src="assets/imgs/curvy_castle.png" style="width: 100%; border-radius: 6px; margin-bottom: 1rem;"/>
-                <img src="assets/imgs/curvy_castle.png" style="width: 100%; border-radius: 6px; margin-bottom: 1rem;"/>
-                <img src="assets/imgs/curvy_castle.png" style="width: 100%; border-radius: 6px; margin-bottom: 1rem;"/>
-           </div> 
-           <div id="player1" style=" border-width: 0px 2px 0px 2px; border-color: white; border-style: solid; width: 40%; padding: 1rem;" ondrop="player_dropped(event)" ondragover="allow_drop(event)"> 
+                <img src="assets/imgs/curvy_castle.png" style="width: 100%; border-radius: 6px; margin-bottom: 1rem;" />
+                <img src="assets/imgs/curvy_castle.png" style="width: 100%; border-radius: 6px; margin-bottom: 1rem;" />
+                <img src="assets/imgs/curvy_castle.png" style="width: 100%; border-radius: 6px; margin-bottom: 1rem;" />
+                <img src="assets/imgs/curvy_castle.png" style="width: 100%; border-radius: 6px; margin-bottom: 1rem;" />
+            </div>
+            <div id="player1" style=" border-width: 0px 2px 0px 2px; border-color: white; border-style: solid; width: 40%; padding: 1rem;" ondrop="player_dropped(event)" ondragover="allow_drop(event)">
                 <h4 id="player1-name"> Drag & Drop a Player</h4>
-                <div id="player1-info" class="flex flex-wrap justify-between player-info"> 
+                <div id="player1-info" class="flex flex-wrap justify-between player-info">
                     <div id="player1-total-stats"> </div>
                     <div id="player1-total-games"> </div>
+                    <div id="player1-total-guns">
+                        <div id='player1-gun-slider' class='gun-slider hidden'>
+                            <div id='player1-gun-view' class='gun-view'>
+                                <div id='player1-back-gun' class='back-gun slide-button' onclick="backGun('player1')">Back</div>
+                                <div id='player1-gun-slide' class='gun-slide'></div>
+                                <div id='player1-next-gun' class='next-gun slide-button' onclick="nextGun('player1')">Next</div>
+                            </div>
+                            <div id='player1-gun-stats' class='gun-stats'></div>
+                        </div>
+                    </div>
                 </div>
-           </div> 
-           <div id="player2" style="width: 40%; padding: 1rem;" ondrop="player_dropped(event)" ondragover="allow_drop(event)">
+            </div>
+            <div id="player2" style="width: 40%; padding: 1rem;" ondrop="player_dropped(event)" ondragover="allow_drop(event)">
                 <h4 id="player2-name"> Drag & Drop a Player</h4>
-                <div id="player2-info" class="flex flex-wrap justify-between player-info"> 
+                <div id="player2-info" class="flex flex-wrap justify-between player-info">
                     <div id="player2-total-stats"> </div>
                     <div id="player2-total-games"> </div>
-                </div>
-            </div> 
-        </div>
-
-        <div id='gun-grid'>
-            <div id='gun-select'>
-                <h2>Gun Select</h2>
-                <div id='gun-select-grid'>
-                    <?php
-                    $cmd = "select * from sauer_matches LIMIT 1";
-                    $stmt = $dbh->prepare($cmd);
-                    $success = $stmt->execute([]);
-
-                    $row = $stmt->fetch();
-                    $guns = json_decode($row['gun_hits']);
-
-                    foreach ($guns as $gun => $val) {
-                        echo '<div class="gun-container">' . $gun . '</div>';
-                    }
-                    ?>
-                </div>
-            </div>
-            <div id='gun-stats'>
-                <h2>Gun Stats</h2>
-                <div id='gun-stats-grid'>
+                    <div id="player2-total-guns">
+                        <div id='player2-gun-slider' class='gun-slider hidden'>
+                            <div id='player2-gun-view' class='gun-view'>
+                                <div id='player2-back-gun' class='back-gun slide-button' onclick="backGun('player2')">Back</div>
+                                <div id='player2-gun-slide' class='gun-slide'></div>
+                                <div id='player2-next-gun' class='next-gun slide-button' onclick="nextGun('player2')">Next</div>
+                            </div>
+                            <div id='player2-gun-stats' class='gun-stats'></div>
+                        </div>
+                    </div>
 
                 </div>
             </div>
         </div>
+
+
     </div>
     <script>
-
         const state = {
             player_dragged: undefined,
         }
 
-        window.addEventListener("load", function() {
-            let matchData;
-            let date;
-            let gunShots;
-            let gunHits;
-            let selectedPlayer = "";
-            let selectedGun = undefined;
-            let playerMatches = null;
+        let matchData;
+        let date;
+        let gunShots;
+        let gunHits;
+        let guns = <?php echo json_encode($gunList); ?>;
+        let selecteGunP1 = 0;
+        let selecteGunP2 = 0;
+        let matchesP1, matchesP2;
 
+        let sceneP1, cameraP1, rendererP1, modelP1, loaderP1;
+        let sceneP2, cameraP2, rendererP2, modelP2, loaderP2;
+
+        function init() {
+            // PLAYER 1
+            sceneP1 = new THREE.Scene();
+            cameraP1 = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 5000);
+            //cameraP1.rotation.y = 40 / 180 * Math.PI;
+            //cameraP1.position.x = 800;
+            cameraP1.position.y = 50;
+            cameraP1.position.z = 1000;
+
+            hlight = new THREE.AmbientLight(0x404040, 100);
+            sceneP1.add(hlight);
+            directionalLight = new THREE.DirectionalLight(0xffffff, 30);
+            directionalLight.position.set(-200, 1000, 50);
+            directionalLight.castShadow = true;
+            sceneP1.add(directionalLight);
+            rendererP1 = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+            rendererP1.setSize(400, 200);
+            document.querySelector((`#player1-gun-slide`)).appendChild(rendererP1.domElement);
+            loaderP1 = new THREE.GLTFLoader();
+            loaderP1.load('assets/chainsaw.gltf', function(gltf) {
+                modelP1 = gltf.scene.children[0];
+                modelP1.scale.set(150, 150, 175);
+
+                sceneP1.add(gltf.scene);
+                animate();
+            });
+
+            // PLAYER 2
+            sceneP2 = new THREE.Scene();
+            cameraP2 = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 5000);
+            //cameraP2.rotation.y = 40 / 180 * Math.PI;
+            //cameraP2.position.x = 800;
+            cameraP2.position.y = 50;
+            cameraP2.position.z = 1000;
+
+            hlight = new THREE.AmbientLight(0x404040, 100);
+            sceneP2.add(hlight);
+            directionalLight = new THREE.DirectionalLight(0xffffff, 30);
+            directionalLight.position.set(-200, 1000, 50);
+            directionalLight.castShadow = true;
+            sceneP2.add(directionalLight);
+            rendererP2 = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+            rendererP2.setSize(400, 200);
+            document.querySelector((`#player2-gun-slide`)).appendChild(rendererP2.domElement);
+            loaderP2 = new THREE.GLTFLoader();
+            loaderP2.load('assets/chainsaw.gltf', function(gltf) {
+                modelP2 = gltf.scene.children[0];
+                modelP2.scale.set(150, 150, 175);
+
+                sceneP2.add(gltf.scene);
+                animate();
+            });
+
+        }
+
+
+        function animate() {
+            try {
+                rendererP1.render(sceneP1, cameraP1);
+                modelP1.rotation.z += 0.01;
+            } catch {}
+            try {
+                rendererP2.render(sceneP2, cameraP2);
+                modelP2.rotation.z += 0.01;
+            } catch {}
+            requestAnimationFrame(animate);
+        }
+
+
+
+        window.addEventListener("load", function() {
+            init();
+            console.log(guns);
             document.getElementById('inputfile').addEventListener('change', function() {
                 var fr = new FileReader();
                 fr.onload = function() {
@@ -249,19 +347,21 @@ try {
 
         })
 
-        function allow_drop(event) { event.preventDefault(); }
+        function allow_drop(event) {
+            event.preventDefault();
+        }
 
-        function player_dropped( event ) {
-            event.preventDefault(); 
-            console.log("Dropped!", event.originalTarget);
+        function player_dropped(event) {
+            event.preventDefault();
+            console.log("Dropped!", event.target);
 
 
             let players = ["player1", "player2"];
-            let element = event.originalTarget;
-            while ( players.includes( element.id ) === false ) {
+            let element = event.target;
+            while (players.includes(element.id) === false) {
                 element = element.parentElement;
             }
-            const player_container = element.id;   // Will be either "player1" or "player2"
+            const player_container = element.id; // Will be either "player1" or "player2"
 
             // Update the Player Container name to the Player thats been dropped in
             document.getElementById(`${player_container}-name`).innerText = state.player_dragged;
@@ -273,8 +373,13 @@ try {
                     "player": state.player_dragged,
                 },
                 success: function(response) {
-
                     let playerMatches = JSON.parse(response);
+
+                    if (player_container == 'player1') {
+                        matchesP1 = playerMatches;
+                    } else {
+                        matchesP2 = playerMatches;
+                    }
                     //console.log(playerMatches);
                     let info = {
                         "Total Games": 0,
@@ -329,8 +434,14 @@ try {
                     document.querySelector(`#${player_container}-total-stats`).innerHTML = output;
 
                     output = "";
-                    playerMatches.map(match => output += "<div class='" + match['win_state'] + "'>Match ID: " + match['id'] + " - " + match['win_state'] + "</div><br>");
+                    playerMatches.map(match => output += "<a href='/sauer/match.php?id=" + match['id'] + "' class='" + match['win_state'] + "'>Match ID: " + match['id'] + " - " + match['win_state'] + "</a><br>");
                     document.querySelector(`#${player_container}-total-games`).innerHTML = output;
+
+                    let selectedGun = player_container == 'player1' ? (selecteGunP1 = 0) : (selecteGunP2 = 0);
+
+                    document.querySelector(`#${player_container}-gun-slider`).classList.remove("hidden");
+
+                    renderGunSlide(player_container);
 
                     //TODO: Make match view - player matches will be clickable
                     //TODO: Add individual gun stats
@@ -343,65 +454,156 @@ try {
             })
         }
 
-            document.querySelectorAll(".gun-container").forEach(function(el) {
-                el.addEventListener("click", function() {
+        document.querySelectorAll(".gun-container").forEach(function(el) {
+            el.addEventListener("click", function() {
 
-                    try {
-                        document.querySelector(".selected-gun").classList.remove("selected-gun");
-                    } catch {}
-                    el.classList.add("selected-gun");
+                try {
+                    document.querySelector(".selected-gun").classList.remove("selected-gun");
+                } catch {}
+                el.classList.add("selected-gun");
 
-                    let gun = el.innerHTML;
-                    selectedGun = gun;
+                let gun = el.innerHTML;
+                selectedGun = gun;
 
-                    getGunStats();
-                })
+                getGunStats();
             })
+        })
 
-            function getGunStats() {
-                let info = {
-                    "Total Shots": 0,
-                    "Total Hits": 0,
-                    "Accuracy": 0,
-                    "Average Shots": 0,
-                    "Average Hits": 0,
-                    "Average Accuracy": 0,
-                }
+        function getGunStats() {
+            let info = {
+                "Total Shots": 0,
+                "Total Hits": 0,
+                "Accuracy": 0,
+                "Average Shots": 0,
+                "Average Hits": 0,
+                "Average Accuracy": 0,
+            }
 
 
-                playerMatches.map(match => info["Total Shots"] += getShots(match));
-                playerMatches.map(match => info["Total Hits"] += getHits(match));
+            playerMatches.map(match => info["Total Shots"] += getShots(match));
+            playerMatches.map(match => info["Total Hits"] += getHits(match));
 
-                info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
-                info["Average Shots"] = parseFloat((info["Total Shots"] / playerMatches.length).toFixed(2));
-                info["Average Hits"] = parseFloat((info["Total Hits"] / playerMatches.length).toFixed(2));
+            info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
+            info["Average Shots"] = parseFloat((info["Total Shots"] / playerMatches.length).toFixed(2));
+            info["Average Hits"] = parseFloat((info["Total Hits"] / playerMatches.length).toFixed(2));
 
-                playerMatches.map(match => info["Average Accuracy"] += parseInt((getHits(match) * 100) / Math.max(getShots(match), 1)));
-                info["Average Accuracy"] = parseFloat((info["Average Accuracy"] / playerMatches.length).toFixed(2));
+            playerMatches.map(match => info["Average Accuracy"] += parseInt((getHits(match) * 100) / Math.max(getShots(match), 1)));
+            info["Average Accuracy"] = parseFloat((info["Average Accuracy"] / playerMatches.length).toFixed(2));
 
-                let output = "";
-                Object.keys(info).map(function(key, index) {
-                    output += "<div>" + key + ": " + info[key] + "</div>"
+            let output = "";
+            Object.keys(info).map(function(key, index) {
+                output += "<div>" + key + ": " + info[key] + "</div>"
+            });
+            document.querySelector("#gun-stats-grid").innerHTML = output;
+        }
+
+        function getHits(match) {
+            selectedGun = selectedGun.toLowerCase()
+            let hits = JSON.parse(match['gun_hits']);
+            return parseInt(hits[selectedGun]);
+        }
+
+        function getShots(match) {
+            selectedGun = selectedGun.toLowerCase()
+            let shots = JSON.parse(match['gun_shots']);
+            return parseInt(shots[selectedGun]);
+        }
+
+        function renderGunSlide(player) {
+            if (player == 'player1') {
+                console.log("assets/" + guns[selecteGunP1] + '.gltf')
+                //document.querySelector(`#${player}-gun-slide`).innerHTML = guns[selecteGunP1];
+                sceneP1.remove(sceneP1.children[2]);
+                loaderP1.load("assets/" + guns[selecteGunP1] + '.gltf', function(gltf) {
+                    modelP1 = gltf.scene.children[0];
+                    modelP1.scale.set(100, 100, 150);
+
+                    sceneP1.add(gltf.scene);
+
                 });
-                document.querySelector("#gun-stats-grid").innerHTML = output;
+            } else {
+                // document.querySelector(`#${player}-gun-slide`).innerHTML = guns[selecteGunP2];
+                sceneP2.remove(sceneP2.children[2]);
+                loaderP2.load("assets/" + guns[selecteGunP2] + '.gltf', function(gltf) {
+                    modelP2 = gltf.scene.children[0];
+                    modelP2.scale.set(100, 100, 150);
+
+                    sceneP2.add(gltf.scene);
+                });
+            }
+            getGunStats(player);
+        }
+
+        function backGun(player) {
+            if (player == 'player1') {
+                selecteGunP1 = (selecteGunP1 == 0 ? guns.length - 1 : selecteGunP1 - 1);
+            } else {
+                selecteGunP2 = (selecteGunP2 == 0 ? guns.length - 1 : selecteGunP2 - 1);
+            }
+            renderGunSlide(player);
+
+        }
+
+        function nextGun(player) {
+            if (player == 'player1') {
+                selecteGunP1 = (selecteGunP1 == guns.length - 1 ? 0 : selecteGunP1 + 1);
+            } else {
+                selecteGunP2 = (selecteGunP2 == guns.length - 1 ? 0 : selecteGunP2 + 1);
+            }
+            renderGunSlide(player);
+
+        }
+
+
+        function getGunStats(player) {
+            let playerMatches = matchesP1;
+            let gun = guns[selecteGunP1];
+
+            if (player == 'player2') {
+                playerMatches = matchesP2;
+                gun = guns[selecteGunP2];
             }
 
-            function getHits(match) {
-                selectedGun = selectedGun.toLowerCase()
-                let hits = JSON.parse(match['gun_hits']);
-                return parseInt(hits[selectedGun]);
+            let info = {
+                "Total Shots": 0,
+                "Total Hits": 0,
+                "Accuracy": 0,
+                "Average Shots": 0,
+                "Average Hits": 0,
+                "Average Accuracy": 0,
             }
 
-            function getShots(match) {
-                selectedGun = selectedGun.toLowerCase()
-                let shots = JSON.parse(match['gun_shots']);
-                return parseInt(shots[selectedGun]);
-            }
 
+            playerMatches.map(match => info["Total Shots"] += getShots(match, gun));
+            playerMatches.map(match => info["Total Hits"] += getHits(match, gun));
+
+            info["Accuracy"] = parseFloat((info["Total Hits"] / Math.max(info["Total Shots"], 1) * 100).toFixed(2));
+            info["Average Shots"] = parseFloat((info["Total Shots"] / playerMatches.length).toFixed(2));
+            info["Average Hits"] = parseFloat((info["Total Hits"] / playerMatches.length).toFixed(2));
+
+            playerMatches.map(match => info["Average Accuracy"] += parseInt((getHits(match, gun) * 100) / Math.max(getShots(match, gun), 1)));
+            info["Average Accuracy"] = parseFloat((info["Average Accuracy"] / playerMatches.length).toFixed(2));
+
+            let output = "";
+            Object.keys(info).map(function(key, index) {
+                output += "<div>" + key + ": " + info[key] + "</div>"
+            });
+            document.querySelector(`#${player}-gun-stats`).innerHTML = output;
+        }
+
+        function getHits(match, gun) {
+            let hits = JSON.parse(match['gun_hits']);
+            return parseInt(hits[gun]);
+        }
+
+        function getShots(match, gun) {
+            let shots = JSON.parse(match['gun_shots']);
+            return parseInt(shots[gun]);
+        }
 
 
         function dragging_player(event) {
-            state.player_dragged = event.originalTarget.innerHTML.trim();
+            state.player_dragged = event.target.innerHTML.trim();
         }
     </script>
 </body>
